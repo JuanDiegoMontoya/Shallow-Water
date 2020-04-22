@@ -33,10 +33,11 @@ public:
 	void Init();
 	void Update();
 	void Render();
+	double GetWaterSum();
+	void SplashySplashy(SplashArgs arg);
 
+	bool Test1();
 private:
-	//void genMesh();
-
 	std::vector<glm::vec3> vertices; // order doesn't change
 	std::vector<glm::vec2> vertices2d; // order doesn't change
 	std::vector<GLuint> indices; // immutable basically
@@ -46,7 +47,7 @@ private:
 
 	// use 
 	void initDepthTex();
-	GLuint HeightTex;
+	GLuint HeightTex = -1;
 	struct cudaGraphicsResource* imageResource;
 	struct cudaArray* arr;
 
@@ -56,9 +57,6 @@ private:
 	Pipe* tempvPGrid = nullptr; // temp
 
 	PipeUpdateArgs args;
-	bool calcNormals = true;
-	glm::ivec2 splashLoc;
-
 	SplashArgs splash;
 
 	const int X, Y, Z;
@@ -68,4 +66,5 @@ private:
 	const int PBlockSize;
 	const int hPNumBlocks;
 	const int vPNumBlocks;
+
 };

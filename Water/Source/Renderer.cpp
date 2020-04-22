@@ -31,7 +31,7 @@ namespace Renderer
 		float updateFrequency = .01f; // seconds
 		float timeCount = 0;
 
-		PipeWater waterSim(2000, 1, 2000);
+		PipeWater* waterSim;// (2000, 1, 2000);
 		int automataIndex = 5;
 
 		// cubemap
@@ -117,7 +117,8 @@ namespace Renderer
 		pipeline.ClearColor = { 0, .2, .4 };
 
 		initCubeMap();
-		waterSim.Init();
+		waterSim = new PipeWater(1500, 1, 1500);
+		waterSim->Init();
 
 		Engine::PushRenderCallback(DrawAll, 0);
 		Engine::PushUpdateCallback(Update, 0);
@@ -160,10 +161,10 @@ namespace Renderer
 		{
 			timeCount += Engine::GetDT();
 
-			if (timeCount > updateFrequency)
+			while (timeCount > updateFrequency)
 			{
-				waterSim.Update();
-				timeCount = 0;
+				waterSim->Update();
+				timeCount -= updateFrequency;
 			}
 		}
 	}
@@ -192,7 +193,7 @@ namespace Renderer
 
 		drawCubeMap();
 
-		waterSim.Render();
+		waterSim->Render();
 
 		drawAxisIndicators();
 
@@ -266,9 +267,9 @@ namespace Renderer
 		return updateFrequency;
 	}
 
-	PipeWater* GetWaterSim()
+	PipeWater*& GetWaterSim()
 	{
-		return &waterSim;
+		return waterSim;
 	}
 
 

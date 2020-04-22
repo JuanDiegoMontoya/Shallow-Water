@@ -23,5 +23,5 @@ namespace Renderer
 	Pipeline* GetPipeline();
 	float& GetUpdateFrequencyRef();
 
-	PipeWater* GetWaterSim();
+	PipeWater*& GetWaterSim();
 }

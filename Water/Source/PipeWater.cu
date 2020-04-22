@@ -14,6 +14,7 @@
 #include <vbo.h>
 #include <vao.h>
 #include <ibo.h>
+// TODO: fix bug causing uneven grid dimensions (e.g. 100x200) to not work
 
 // texture storing the depth information
 surface<void, 2> surfRef;
@@ -61,7 +62,7 @@ __global__ static void perturbGrid(SplashArgs args, int X, int Y, int Z)
 
 		float h = 0;
 		surf2Dread(&h, surfRef, tp.x * sizeof(float), tp.y);
-		// DHM
+		// DHM without the oscillating part
 		// y = Ae^(-bt)
 		float t = glm::distance({ tp.x, tp.y }, args.pos);
 		h += args.A * glm::pow(glm::e<float>(), -args.b * t);
@@ -103,7 +104,7 @@ __global__ static void clampGridPipes(Pipe* hPGrid, Pipe* vPGrid, float dt, int 
 			float scalar = depth / (sumflow * -dt);
 			if (fabs(scalar) > 1)
 			{
-				//printf("meme: %.3f\n", scalar);
+				//printf("val: %.3f\n", scalar);
 				//continue;
 			}
 			if (flows[0] < 0)
@@ -203,9 +204,9 @@ __global__ static void updateHPipes(Pipe* hPGrid, PipeUpdateArgs args, int X, in
 		// dt = optional scalar
 		// Q += A*(g/dx)*dh*dt
 		float A = 1;
-		float g = 9.8;
-		float dt = .125;
-		float dx = 1; // CONSTANT (length of pipe)
+		//float g = 9.8;
+		//float dt = .125;
+		//float dx = 1; // CONSTANT (length of pipe)
 		float dh = rightHeight - leftHeight; // diff left->right
 
 		// flow from left to right
@@ -276,7 +277,18 @@ PipeWater::PipeWater(int x, int y, int z)
 
 PipeWater::~PipeWater()
 {
-	//cudaCheck(cudaGraphicsUnregisterResource(imageResource));
+	cudaCheck(cudaGraphicsUnregisterResource(imageResource));
+	cudaCheck(cudaFree(hPGrid));
+	cudaCheck(cudaFree(vPGrid));
+	cudaCheck(cudaFree(temphPGrid));
+	cudaCheck(cudaFree(tempvPGrid));
+
+	delete pIbo;
+	delete pVbo;
+	delete pVao;
+
+	if (HeightTex != -1)
+		glDeleteTextures(1, &HeightTex);
 }
 
 
@@ -284,6 +296,10 @@ PipeWater::~PipeWater()
 #include <math.h>
 void PipeWater::Init()
 {
+	//cudaSurfaceObject_t sff;
+	//cudaCheck(cudaGetSurfaceReference(&surfRef), &sff);
+	//cudaDestroySurfaceObject(sff);
+	//surfRef = surface<void, 2>();
 	initDepthTex();
 
 	// reset flow of 
@@ -344,44 +360,30 @@ void PipeWater::Render()
 	{
 		ImGui::Begin("Piped Water Simulation");
 		ImGui::Text("Dimensions: X = %d, Z = %d", X, Z);
+
 		ImGui::Separator();
+
 		ImGui::Text("Changing settings may lead \n to explosive results");
 		ImGui::SliderFloat("dt", &args.dt, 0, 1, "%.2f s");
 		ImGui::SliderFloat("dx", &args.dx, 0, 5, "%.2f m");
 		ImGui::SliderFloat("g", &args.g, 0, 50, "%.2f m/s^2");
-		ImGui::Checkbox("Calculate Normals", &calcNormals);
+
+		ImGui::Separator();
+
 		if (ImGui::Button("Splash water"))
 		{
-			cudaCheck(cudaGraphicsMapResources(1, &imageResource, 0));
-			cudaCheck(cudaGraphicsSubResourceGetMappedArray(&arr, imageResource, 0, 0));
-			cudaCheck(cudaBindSurfaceToArray(surfRef, arr));
-			perturbGrid<<<numBlocks, blockSize>>>(splash, X, Y, Z);
-			//for (int i = 0; i < 10; i++)
-			//{
-			//	perturbGrid << <numBlocks, blockSize >> > (splashLoc + glm::ivec2(i * 25, i * 25));
-			//}
-			cudaCheck(cudaGraphicsUnmapResources(1, &imageResource, 0));
+			SplashySplashy(splash);
 		}
 		if (ImGui::Button("Random Splash"))
 		{
 			SplashArgs sp = splash;
 			sp.pos = { Utils::get_random(0, X), Utils::get_random(0, Z) };
-			cudaCheck(cudaGraphicsMapResources(1, &imageResource, 0));
-			cudaCheck(cudaGraphicsSubResourceGetMappedArray(&arr, imageResource, 0, 0));
-			cudaCheck(cudaBindSurfaceToArray(surfRef, arr));
-			perturbGrid<<<numBlocks, blockSize>>>(sp, X, Y, Z);
-			cudaCheck(cudaGraphicsUnmapResources(1, &imageResource, 0));
+			SplashySplashy(sp);
 		}
-		ImGui::Separator();
 		ImGui::Text("Splash Settings");
 		ImGui::InputFloat2("Location", &splash.pos[0]);
 		ImGui::InputFloat("Amplitude", &splash.A);
 		ImGui::InputFloat("Falloff", &splash.b);
-		//float sum = 0;
-		//for (int i = 0; i < X * Y * Z; i++)
-		//	sum += this->Grid[i].depth;
-		//ImGui::Text("Sum of water: %.2f", sum);
-		//ImGui::Text("Avg height: %.2f", sum / (X * Y * Z));
 		ImGui::End();
 	}
 
@@ -389,22 +391,35 @@ void PipeWater::Render()
 }
 
 
-//void PipeWater::genMesh()
-//{
-//	delete this->mesh_;
-//	std::vector<Vertex> vertices;
-//	std::vector<GLuint> indices;
-//
-//	auto skip = [](const WaterCell& elem)->bool
-//	{
-//		return elem.depth == 0;
-//	};
-//	auto height = [](const WaterCell& elem)->float
-//	{
-//		return elem.depth;
-//	};
-//	mesh_ = GenVoxelMesh(this->Grid, X, Y, Z, skip, height);
-//}
+// computes amount of water in the grid
+double PipeWater::GetWaterSum()
+{
+	int numElements = X * Z;
+	float* data = new float[numElements];
+
+	glBindTexture(GL_TEXTURE_2D, HeightTex);
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_FLOAT, data);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	double sum = 0;
+	for (int i = 0; i < numElements; i++)
+	{
+		sum += data[i];
+	}
+
+	delete[] data;
+	return sum;
+}
+
+
+void PipeWater::SplashySplashy(SplashArgs arg)
+{
+	cudaCheck(cudaGraphicsMapResources(1, &imageResource, 0));
+	cudaCheck(cudaGraphicsSubResourceGetMappedArray(&arr, imageResource, 0, 0));
+	cudaCheck(cudaBindSurfaceToArray(surfRef, arr));
+	perturbGrid<<<numBlocks, blockSize>>>(arg, X, Y, Z);
+	cudaCheck(cudaGraphicsUnmapResources(1, &imageResource, 0));
+}
 
 
 void PipeWater::initDepthTex()
@@ -412,7 +427,6 @@ void PipeWater::initDepthTex()
 	vertices2d.clear();
 	indices.clear();
 
-	//vertices2d = std::vector<glm::vec2>(X * Z * 2, glm::vec2(0)); // num cells * attributes (pos + normal)
 	vertices2d.reserve(X * Z * 2);
 	indices.reserve((X - 1) * (Z - 1) * 2 * 3); // num cells * num tris per cell * num verts per tri
 	
@@ -474,4 +488,25 @@ void PipeWater::initDepthTex()
 	auto err = cudaGraphicsGLRegisterImage(&imageResource, HeightTex, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsSurfaceLoadStore);
 	if (err != cudaSuccess)
 		std::cout << "Error registering CUDA image: " << err << std::endl;
+}
+
+bool PipeWater::Test1()
+{
+	for (int i = 0; i < 10; i++)
+	{
+		SplashArgs sp = splash;
+		sp.pos = { Utils::get_random(0, X), Utils::get_random(0, Z) };
+		SplashySplashy(sp);
+	}
+	double beforeUpdate = GetWaterSum();
+	for (int i = 0; i < 1000; i++)
+	{
+		Update();
+	}
+	double afterUpdate = GetWaterSum();
+
+	double epsilon = .1;
+	std::cout << "Test 1 difference: " << abs(beforeUpdate - afterUpdate) 
+		<< "\nEpsilon: " << epsilon << std::endl;
+	return glm::epsilonEqual(beforeUpdate, afterUpdate, epsilon);
 }

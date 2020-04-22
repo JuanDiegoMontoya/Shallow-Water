@@ -78,11 +78,35 @@ namespace Interface
 
 		{
 			ImGui::Begin("Simulation");
-			ImGui::Text("Game of Life");
-			ImGui::Text("Placeholder");
+
+			// only allow user to choose same value for X and Y axes (otherwise crash will occur)
+			static glm::ivec2 gridRes(1);
+			static int tempGridRes(1);
+			ImGui::SliderInt("Grid Resolution", &tempGridRes, 1, 5000);
+			if (ImGui::Button("New Grid"))
+			{
+				delete Renderer::GetWaterSim();
+				Renderer::GetWaterSim() = new PipeWater(tempGridRes, 1, tempGridRes);
+				Renderer::GetWaterSim()->Init();
+			}
+			if (ImGui::Button("Test 1"))
+			{
+				bool result = Renderer::GetWaterSim()->Test1();
+				std::cout << "Test 1: " << std::boolalpha << result << std::endl;
+			}
+
+			static double curSum = 0;
+			static double prevSum = 0;
+			ImGui::Text("Current  Water: %2.2f", curSum);
+			ImGui::Text("Previous Water: %2.2f", prevSum);
+			if (ImGui::Button("Measure Water Volume"))
+			{
+				prevSum = curSum;
+				curSum = Renderer::GetWaterSim()->GetWaterSum(); // sim->sum
+			}
 
 			ImGui::Checkbox("Pause Simulation", &Engine::GetPauseRef());
-			ImGui::SliderFloat("s/Update", &Renderer::GetUpdateFrequencyRef(), 0, .3f, "%.2f");
+			ImGui::SliderFloat("s/Update", &Renderer::GetUpdateFrequencyRef(), .01f, .3f, "%.2f");
 			if (ImGui::Button("Re-init Sim"))
 				Renderer::GetWaterSim()->Init();
 			if (ImGui::Button("1x Update Simulation"))
