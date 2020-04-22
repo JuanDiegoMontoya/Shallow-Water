@@ -14,17 +14,9 @@
 #include <vbo.h>
 #include <vao.h>
 #include <ibo.h>
-// TODO: fix bug causing uneven grid dimensions (e.g. 100x200) to not work
 
 // texture storing the depth information
 surface<void, 2> surfRef;
-
-/*################################################################
-##################################################################
-										      KERNEL CODE
-##################################################################
-################################################################*/
-
 
 // prints how many time each unique element of texture appears in it
 void printTex(int x, int y, GLuint texID)
@@ -47,6 +39,16 @@ void printTex(int x, int y, GLuint texID)
 
 	delete[] data;
 }
+
+
+
+/*################################################################
+##################################################################
+                          KERNEL CODE
+##################################################################
+################################################################*/
+
+// TODO: uneven grid bug fix (doesn't affect current running)
 
 
 // makes a splash
@@ -255,11 +257,13 @@ __global__ static void updateVPipes(Pipe* vPGrid, PipeUpdateArgs args, int X, in
 }
 
 
+
 /*################################################################
 ##################################################################
-										    END KERNEL CODE
+                        END KERNEL CODE
 ##################################################################
 ################################################################*/
+
 
 
 PipeWater::PipeWater(int x, int y, int z) 
@@ -296,10 +300,6 @@ PipeWater::~PipeWater()
 #include <math.h>
 void PipeWater::Init()
 {
-	//cudaSurfaceObject_t sff;
-	//cudaCheck(cudaGetSurfaceReference(&surfRef), &sff);
-	//cudaDestroySurfaceObject(sff);
-	//surfRef = surface<void, 2>();
 	initDepthTex();
 
 	// reset flow of 
@@ -342,7 +342,6 @@ void PipeWater::Render()
 	sr->setMat4("u_proj", Renderer::GetPipeline()->GetCamera(0)->GetProj());
 	sr->setMat4("u_view", Renderer::GetPipeline()->GetCamera(0)->GetView());
 	sr->setMat4("u_model", model);
-	//sr->setVec3("u_color", { .2, .7, .9 });
 	sr->setVec3("u_viewpos", Renderer::GetPipeline()->GetCamera(0)->GetPos());
 	sr->setVec3("sun.ambient", { .1, .1, .1 });
 	sr->setVec3("sun.diffuse", { .8, .8, .8 });
@@ -386,8 +385,6 @@ void PipeWater::Render()
 		ImGui::InputFloat("Falloff", &splash.b);
 		ImGui::End();
 	}
-
-	//printTex(X, Z, HeightTex);
 }
 
 

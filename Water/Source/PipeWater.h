@@ -1,11 +1,6 @@
 #pragma once
 
 //https://tutcris.tut.fi/portal/files/4312220/kellomaki_1354.pdf p74
-struct WaterCell
-{
-	float depth = 0; // d += -dt*(SUM(Q)/(dx)^2) # sum of all adjacent pipes
-};
-
 struct Pipe
 {
 	float flow = 0; // Q += A*(g/dx)*dh*dt
