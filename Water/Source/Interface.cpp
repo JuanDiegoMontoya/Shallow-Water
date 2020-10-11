@@ -47,7 +47,7 @@ namespace Interface
 			}
 			if (ImGui::Button("Recompile HeightWater Shader"))
 			{
-				delete Shader::shaders["heightWater"];
+				//delete Shader::shaders["heightWater"];
 				Shader::shaders["heightWater"] = new Shader("height.vs", "heightWater.fs");
 			}
 
@@ -120,6 +120,15 @@ namespace Interface
 			if (ImGui::Button("2000x Update Simulation"))
 				for (int i = 0; i < 2000; i++)
 					Renderer::GetWaterSim()->Update();
+
+			ImGui::End();
+		}
+
+		{
+			ImGui::Begin("Rendering");
+
+			ImGui::SliderFloat("Water Refract Idx", &Renderer::WaterRefract(), 0, 5);
+			ImGui::SliderFloat("Air Refract Idx", &Renderer::AirRefract(), 0, 5);
 
 			ImGui::End();
 		}

@@ -24,4 +24,7 @@ namespace Renderer
 	float& GetUpdateFrequencyRef();
 
 	PipeWater*& GetWaterSim();
+
+	float& WaterRefract();
+	float& AirRefract();
 }

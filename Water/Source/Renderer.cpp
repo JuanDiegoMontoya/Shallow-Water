@@ -34,6 +34,9 @@ namespace Renderer
 		PipeWater* waterSim;// (2000, 1, 2000);
 		int automataIndex = 5;
 
+		float waterRefract = 1.33;
+		float airRefract = 1.0;
+
 		// cubemap
 		GLuint cubeTex;
 		VAO* cubeVao = nullptr;
@@ -195,7 +198,7 @@ namespace Renderer
 
 		waterSim->Render();
 
-		drawAxisIndicators();
+		//drawAxisIndicators();
 
 		glDisable(GL_FRAMEBUFFER_SRGB);
 		PERF_BENCHMARK_END;
@@ -270,6 +273,16 @@ namespace Renderer
 	PipeWater*& GetWaterSim()
 	{
 		return waterSim;
+	}
+
+	float& WaterRefract()
+	{
+		return waterRefract;
+	}
+
+	float& AirRefract()
+	{
+		return airRefract;
 	}
 
 

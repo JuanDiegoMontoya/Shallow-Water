@@ -343,10 +343,8 @@ void PipeWater::Render()
 	sr->setMat4("u_view", Renderer::GetPipeline()->GetCamera(0)->GetView());
 	sr->setMat4("u_model", model);
 	sr->setVec3("u_viewpos", Renderer::GetPipeline()->GetCamera(0)->GetPos());
-	sr->setVec3("sun.ambient", { .1, .1, .1 });
-	sr->setVec3("sun.diffuse", { .8, .8, .8 });
-	sr->setVec3("sun.specular", { .8, .8, .8 });
-	sr->setVec3("sun.direction", { 0, -1, 0 });
+	sr->setFloat("u_waterRefract", Renderer::WaterRefract());
+	sr->setFloat("u_airRefract", Renderer::AirRefract());
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, HeightTex);
 	sr->setInt("heightTex", 0);
